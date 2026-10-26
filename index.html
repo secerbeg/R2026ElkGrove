@@ -72,7 +72,7 @@
 <div class="hero-main"><div class="eyebrow">MLS NEXT CUP QUALIFIER · ROSEVILLE REGIONAL</div><h1>Elk Grove <em>Match Schedule</em></h1><div class="hero-meta"><span class="meta"><b>OCT 30 – NOV 1</b> · 2026</span><span class="meta">6 age groups · U13–U19</span><span class="meta">Placer Valley Soccer Complex</span></div></div></div></header>
 <main class="container content"><div class="section-head"><div><h2>Schedules</h2></div><a class="small-link" href="#elkGroups">View all groups ↓</a></div>
 <div class="mode-picker" aria-label="Schedule source"><button class="mode-card active" type="button" id="draftButton" aria-pressed="true"><span class="mode-icon" aria-hidden="true">▤</span><span><span class="mode-name">Draft schedule</span><span class="mode-desc">18 Elk Grove group matches</span></span><span class="mode-check" aria-hidden="true">✓</span></button><button class="mode-card" type="button" id="publishedButton" aria-pressed="false"><span class="mode-icon" aria-hidden="true">↻</span><span><span class="mode-name">Published & scores</span><span class="mode-desc">Check live MLS Assist feed</span></span><span class="mode-check" aria-hidden="true">✓</span></button></div>
-<div class="toolbar"><div class="labelrow"><label>SELECT ELK GROVE AGE GROUP</label><button id="reset" type="button" class="clear-btn">Show all</button></div><div class="age-pills" id="agePills"><button type="button" class="age-btn selected" data-age="All">All ages</button><button type="button" class="age-btn" data-age="U13">U13</button><button type="button" class="age-btn" data-age="U14">U14</button><button type="button" class="age-btn" data-age="U15">U15</button><button type="button" class="age-btn" data-age="U16">U16</button><button type="button" class="age-btn" data-age="U17">U17</button><button type="button" class="age-btn" data-age="U19">U19</button></div><div class="mini-row"><div class="day-pills" id="dayPills" role="group" aria-label="Schedule round"><button class="day-btn selected" data-day="All" type="button" aria-pressed="true">All group games</button><button class="day-btn" data-day="2026-10-30" type="button" aria-pressed="false">Fri · Groups</button><button class="day-btn" data-day="2026-10-31" type="button" aria-pressed="false">Sat · Groups</button><button class="day-btn" data-day="Semifinal" type="button" aria-pressed="false">Sat · Semifinals</button><button class="day-btn" data-day="Final" type="button" aria-pressed="false">Sun · Final</button></div><span class="match-count" id="matchCount">18 matches</span></div></div>
+<div class="toolbar"><div class="labelrow"><label>SELECT ELK GROVE AGE GROUP</label><button id="reset" type="button" class="clear-btn">Show all</button></div><div class="age-pills" id="agePills"><button type="button" class="age-btn selected" data-age="All">All ages</button><button type="button" class="age-btn" data-age="U13">U13</button><button type="button" class="age-btn" data-age="U14">U14</button><button type="button" class="age-btn" data-age="U15">U15</button><button type="button" class="age-btn" data-age="U16">U16</button><button type="button" class="age-btn" data-age="U17">U17</button><button type="button" class="age-btn" data-age="U19">U19</button></div><div class="mini-row"><div class="day-pills" id="dayPills" role="group" aria-label="Schedule round"><button class="day-btn selected" data-day="All" type="button" aria-pressed="true">All Games</button><button class="day-btn" data-day="2026-10-30" type="button" aria-pressed="false">Friday</button><button class="day-btn" data-day="2026-10-31" type="button" aria-pressed="false">Saturday</button><button class="day-btn" data-day="Semifinal" type="button" aria-pressed="false">Semifinals</button><button class="day-btn" data-day="Final" type="button" aria-pressed="false">Finals</button></div><span class="match-count" id="matchCount">18 matches</span></div></div>
 <div class="two-col"><section class="section-panel" id="schedulePanel"><div class="panel-head"><h2 id="scheduleTitle">Elk Grove fixtures</h2><span class="status-tag" id="sourceBadge">PRELIMINARY</span></div>
 <div id="draftPanel"><div id="gameList" class="cards">
 <!-- Server-rendered fallback: complete Elk Grove fixtures display even if the HTML preview does not run JavaScript. -->
@@ -126,7 +126,8 @@ function draftMatches(){
   let arr;
   if(selectedDay==='Semifinal')arr=KNOCKOUTS.flatMap(k=>k.semis.map((m,i)=>({...m,semiNumber:i+1})));
   else if(selectedDay==='Final')arr=KNOCKOUTS.map(k=>k.final);
-  else arr=DRAFT_GAMES.filter(m=>selectedDay==='All'||m.day===selectedDay);
+  else if(selectedDay==='All')arr=[...DRAFT_GAMES,...KNOCKOUTS.flatMap(k=>k.semis.map((m,i)=>({...m,semiNumber:i+1}))),...KNOCKOUTS.map(k=>k.final)];
+  else arr=DRAFT_GAMES.filter(m=>m.day===selectedDay);
   return arr.filter(m=>(selectedAge==='All'||m.age===selectedAge)&&(!selectedField||Number(m.field)===selectedField))
     .sort((a,b)=>a.day.localeCompare(b.day)||a.slot-b.slot||a.field-b.field);
 }
@@ -134,7 +135,7 @@ function card(m){
   const p=parking(m.field);
   if(m.round!=='Group'){
     const label=m.round==='Semifinal'?`Semifinal ${m.semiNumber} of 2`:'Final';
-    return `<article class="game-card knockout-slot"><div class="game-badge">${esc(m.age)}</div><div class="game-details"><div class="game-opponent">${esc(label)} · Teams TBD</div><div class="game-sub">${m.round==='Semifinal'?'Potential Elk Grove match if qualified':'If Elk Grove advances'} <span class="dot">·</span> Assignment TBD</div></div><div class="game-right"><b>${esc(m.time)}</b><span><span class="match-field">Field ${esc(m.field)}</span> · ${p}</span></div></article>`;
+    return `<article class="game-card knockout-slot"><div class="game-badge">${esc(m.age)}</div><div class="game-details"><div class="game-opponent">${esc(label)} · Teams TBD</div><div class="game-sub">Elk Grove qualification pending <span class="dot">·</span> Opponents TBD</div></div><div class="game-right"><b>${esc(m.time)}</b><span><span class="match-field">Field ${esc(m.field)}</span> · ${p}</span></div></article>`;
   }
   const op=oppOf(m);
   return `<article class="game-card"><div class="game-badge">${esc(m.age)}</div><div class="game-details"><div class="game-opponent">${esc(op)}</div><div class="game-sub">Elk Grove Soccer <span class="dot">·</span> Group stage</div></div><div class="game-right"><b>${esc(m.time)}</b><span><span class="match-field">Field ${esc(m.field)}</span> · ${p}</span></div></article>`;
@@ -142,25 +143,35 @@ function card(m){
 function renderDraft(){
   const matches=draftMatches();
   $('groupMatches').textContent=selectedAge==='All'?'18':'3';
-  const isSemi=selectedDay==='Semifinal',isFinal=selectedDay==='Final';
-  $('matchCount').textContent=matches.length+' '+(isSemi?'semi slot'+(matches.length===1?'':'s'):isFinal?'final slot'+(matches.length===1?'':'s'):matches.length===1?'match':'matches');
+  const isSemi=selectedDay==='Semifinal',isFinal=selectedDay==='Final',isAll=selectedDay==='All';
+  const groupCount=matches.filter(m=>m.round==='Group').length;
+  const conditionalCount=matches.length-groupCount;
+  $('matchCount').textContent=isAll
+    ?`${groupCount} group games + ${conditionalCount} possible playoff slots`
+    :matches.length+' '+(isSemi?'semi slot'+(matches.length===1?'':'s'):isFinal?'final slot'+(matches.length===1?'':'s'):matches.length===1?'match':'matches');
   if(isSemi||isFinal){
     const countAges=selectedAge==='All'?'each age':selectedAge;
     const notice=isSemi
-      ?`Saturday semifinal schedule: 2 slots for ${countAges}. Elk Grove may play in one semifinal if qualified; teams and field assignment are TBD.`
-      :`Sunday final schedule for ${countAges}. Elk Grove plays only if it advances; opponents are TBD.`;
+      ?`Two Saturday semifinal slots for ${countAges}. Elk Grove can play in only one, if qualified. Teams TBD.`
+      :`Sunday final slot for ${countAges}. Elk Grove plays only if it advances. Teams TBD.`;
     const heading=isSemi?'SATURDAY · OCT 31 · SEMIFINALS':'SUNDAY · NOV 1 · FINALS';
     $('gameList').innerHTML=`<div class="round-notice">${esc(notice)}</div>`+(matches.length?`<h3 class="day-label">${heading}</h3>`+matches.map(card).join(''):'<div class="empty">No playoff slots match this field. Select another field or age.</div>');
   }else{
     let sections=[];
     for(const day of ['2026-10-30','2026-10-31']){
-      const daily=matches.filter(m=>m.day===day);
+      const daily=matches.filter(m=>m.day===day&&m.round==='Group');
       if(daily.length)sections.push(`<h3 class="day-label">${groupDate(day)}</h3>`+daily.map(card).join(''));
     }
-    $('gameList').innerHTML=sections.join('')||'<div class="empty">No Elk Grove group games match this selection. Select another age or field.</div>';
+    if(isAll){
+      const semis=matches.filter(m=>m.round==='Semifinal');
+      const finals=matches.filter(m=>m.round==='Final');
+      if(semis.length)sections.push('<h3 class="day-label">SATURDAY · OCT 31 · SEMIFINALS (TBD)</h3>'+semis.map(card).join(''));
+      if(finals.length)sections.push('<h3 class="day-label">SUNDAY · NOV 1 · FINALS (TBD)</h3>'+finals.map(card).join(''));
+    }
+    const notice=isAll?'<div class="round-notice">Playoff slots are conditional; Elk Grove participation is not confirmed.</div>':'';
+    $('gameList').innerHTML=sections.length?notice+sections.join(''):'<div class="empty">No games match this selection. Select another age or field.</div>';
   }
 }
-
 function renderPools(){
   $('elkGroups').classList.toggle('hidden',viewMode!=='draft');
   document.querySelectorAll('#poolCards .pool-age-section').forEach(section=>{
