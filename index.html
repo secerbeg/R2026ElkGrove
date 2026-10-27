@@ -23,7 +23,8 @@
 const $=id=>document.getElementById(id);
 const ages=['U13','U14','U15','U16','U17','U19'];
 const pools=[['Elk Grove','Atletico Azul','Washington East Surf','North Bay Glens'],['Palo Alto','Seattle Celtic Green','Western WA Surf','Lamorinda'],['Force','Sound FC','Albion Merced','SF Seals'],['SF Glens','Sozo FC','The Town','Roseville']];
-const SCHEDULE_URL='https://mls-assist.theintelligenceplatform.com/data/schedule/mls-next-cup-qualifier-roseville-regional.json';
+const LOCAL_SCHEDULE_URL='./data/published-schedule.json';
+const LOCAL_STATUS_URL='./data/feed-status.json';
 let age='U15',tab='draft',round='All Games',fieldFilter=null,published={state:'idle',events:[],source:null,error:'',synced:null,checked:null},currentClub=null;
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const parking=f=>[1,2,4,5,6,7].includes(Number(f))?'North parking':'South parking';
@@ -56,14 +57,38 @@ function alias(s){s=parseName(s);let low=s.toLowerCase();if(low.includes('elk gr
 function norm(e){let f=e.event||e.fixture||e;let home=alias(f.home_organisation||f.home_team||f.home||f.home_squad?.organisation),away=alias(f.away_organisation||f.away_team||f.away||f.away_squad?.organisation);let st=f.start_time||f.kickoff||f.scheduled_at||f.date||null;let comp=[f.age_group,f.age,f.competition?.name,f.competition_season?.name,f.home_squad?.name,f.away_squad?.name].filter(Boolean).map(parseName).join(' ');let a=(comp.match(/\bU\s?(?:13|14|15|16|17|19)\b/i)||[])[0]?.toUpperCase().replace(' ','')||'Unknown';let d=st?new Date(st):null;let when=d&&!isNaN(d)?d.toLocaleString('en-US',{timeZone:'America/Los_Angeles',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):String(st||'TBD');let loc=parseName(f.event_location||f.location||f.field||f.venue)||'Field TBD';return {home,away,age:a,when,loc,homeScore:f.home_score??null,awayScore:f.away_score??null,completed:Boolean(f.completed||['final','completed','complete'].includes(String(f.status||'').toLowerCase())),sort:d&&!isNaN(d)?d.getTime():Infinity}}
 function pubFiltered(){return published.events.map(norm).filter(m=>(m.home==='Elk Grove'||m.away==='Elk Grove')&&(age==='All'||m.age===age)).sort((a,b)=>a.sort-b.sort)}
 function scoreLine(m,forClub='Elk Grove'){let opp=m.home===forClub?m.away:m.home;let s=m.completed&&m.homeScore!==null&&m.awayScore!==null?`${m.home===forClub?m.homeScore:m.awayScore} – ${m.home===forClub?m.awayScore:m.homeScore}`:'Scheduled';return `<div class="match"><div class="when"><span class="agechip">${safe(m.age)}</span><div>${safe(m.when)}</div></div><div class="op">${clubButton(opp,m.age)}</div><div class="loc">${safe(s)}<small>${safe(m.loc)}</small></div></div>`}
-function renderPublished(){let title=$('feedTitle'),txt=$('feedText'),stamp=$('feedTime');$('feedBadge').textContent=published.state==='loaded'?'RETRIEVED':published.state==='failed'?'UNAVAILABLE':published.state==='loading'?'LOADING':'NOT CHECKED';stamp.textContent=published.checked?'Checked '+new Date(published.checked).toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})+(published.synced?' · Source synced '+published.synced:''):'';
-if(published.state==='loading'){title.textContent='Checking published feed…';txt.textContent='Requesting latest MLS Assist fixtures';$('pubList').innerHTML='';return}
-if(published.state==='failed'){title.textContent='Live results not connected';txt.textContent='The configured feed request failed and no recent backup was available. Draft fixtures are shown separately; this does not confirm whether published fixtures exist.';$('pubList').innerHTML=`<div class="empty">${safe(published.error)}</div>`;return}
-if(published.state==='idle'){title.textContent='Published data not checked';txt.textContent='Use Refresh to request the MLS Assist feed.';$('pubList').innerHTML='';return}
-if(!published.events.length){title.textContent='No fixtures in latest retrieved feed';txt.textContent='The successful response contained zero match records.';$('pubList').innerHTML='';return}
-let match=pubFiltered();title.textContent=match.length+' Elk Grove matches';txt.textContent=published.events.length+' tournament fixtures in feed';$('pubList').innerHTML=match.length?match.map(m=>scoreLine(m)).join(''):'<div class="empty">No Elk Grove matches for this age in the retrieved feed.</div>'}
-async function loadFeed(){published={state:'loading',events:[],checked:new Date().toISOString(),synced:null,error:''};renderPublished();$('refresh').disabled=true;let err='';const req=async(url,t)=>{const c=new AbortController();let timer=setTimeout(()=>c.abort(),t);try{let r=await fetch(url,{cache:'no-store',signal:c.signal});if(!r.ok)throw Error('HTTP '+r.status);let j=await r.json();if(!Array.isArray(j.events))throw Error('Missing events array');return j}finally{clearTimeout(timer)}};
-try{let j=await req(SCHEDULE_URL+'?t='+Date.now(),10000);published={state:'loaded',events:j.events,source:'direct',checked:new Date().toISOString(),synced:j.synced_at||null,error:''}}catch(e){err=e.name==='AbortError'?'Request timed out':String(e.message||e);try{let j=await req('./data/published-schedule.json?t='+Date.now(),5000);let ts=Date.parse(j._site_fetched_at||'');if(!Number.isFinite(ts)||Date.now()-ts>10800000||ts>Date.now())throw Error('No recent site snapshot');published={state:'loaded',events:j.events,source:'site-sync',checked:new Date().toISOString(),synced:j.synced_at||null,error:''}}catch(e2){published={state:'failed',events:[],checked:new Date().toISOString(),synced:null,error:err+'; no recent site sync available'}}}finally{$('refresh').disabled=false;renderPublished();if(currentClub&&$('modal').open)renderModal()}}
+function feedDate(v){if(!v)return 'Not available';let d=new Date(v);return isNaN(d)?String(v):d.toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});}
+function renderPublished(){
+  const title=$('feedTitle'),txt=$('feedText'),stamp=$('feedTime'), badge=$('feedBadge');
+  badge.textContent=published.state==='loaded'?'SYNCED':published.state==='stale'?'SYNC DELAYED':published.state==='failed'?'UNAVAILABLE':published.state==='loading'?'CHECKING':'NOT CHECKED';
+  stamp.textContent=published.checked?'Website checked '+feedDate(published.checked)+(published.fetched?' · Last successful site sync '+feedDate(published.fetched):'')+(published.synced?' · MLS Assist source sync '+feedDate(published.synced):''):'';
+  if(published.state==='loading'){title.textContent='Checking latest published schedule…';txt.textContent='Reading the latest GitHub Pages schedule snapshot.';$('pubList').innerHTML='';return;}
+  if(published.state==='idle'){title.textContent='Published feed not checked';txt.textContent='Open this tab or select Refresh to check the saved schedule.';$('pubList').innerHTML='';return;}
+  if(published.state==='failed'){title.textContent='Schedule sync unavailable';txt.textContent='The website has not received a verified schedule snapshot yet. The Draft tab remains available.';$('pubList').innerHTML=`<div class="empty">${safe(published.error||'The latest site synchronization was unsuccessful.')}</div>`;return;}
+  if(!published.events.length){title.textContent='Awaiting published fixtures';txt.textContent=published.state==='stale'?'The last saved MLS Assist response contains no fixtures. A newer sync attempt failed; check again later.':'MLS Assist recognizes the Roseville competition, but its most recently synchronized JSON feed contains zero fixtures.';$('pubList').innerHTML='';return;}
+  let match=pubFiltered();title.textContent=match.length+' Elk Grove matches';txt.textContent=published.events.length+' tournament fixtures in '+(published.state==='stale'?'the last saved feed. Latest sync attempt failed.':'the latest successfully synchronized feed.');
+  $('pubList').innerHTML=match.length?match.map(m=>scoreLine(m)).join(''):'<div class="empty">No Elk Grove matches for the selected age group in the published feed.</div>';
+}
+let feedLoading=false;
+async function loadFeed(){
+  if(feedLoading)return;
+  feedLoading=true;const old=published;
+  published={...old,state:'loading',checked:new Date().toISOString()};renderPublished();$('refresh').disabled=true;
+  const req=async(url,timeout=9000)=>{let c=new AbortController(), timer=setTimeout(()=>c.abort(),timeout);try{let res=await fetch(url+'?v='+Date.now(),{cache:'no-store',signal:c.signal});if(!res.ok)throw Error('HTTP '+res.status);return await res.json()}finally{clearTimeout(timer)}};
+  try{
+    const result=await Promise.allSettled([req(LOCAL_SCHEDULE_URL),req(LOCAL_STATUS_URL)]);
+    let data=result[0].status==='fulfilled'?result[0].value:null;
+    let status=result[1].status==='fulfilled'?result[1].value:null;
+    if(!data||!Array.isArray(data.events))throw Error('No valid published-schedule.json found on this website. Run the GitHub Actions sync workflow.');
+    const keys=(data.linked_competition_seasons||[]).map(c=>c.key);
+    if(!keys.includes('mls-next-cup-qualifier-roseville-regional'))throw Error('Saved JSON belongs to a different competition.');
+    let failed=status?.state==='error';
+    published={state:failed?'stale':'loaded',events:data.events,source:'site-sync',error:failed?(status.error||'Most recent sync attempt failed'):'',checked:new Date().toISOString(),synced:data.synced_at||null,fetched:data._site_fetched_at||status?.last_success_at||null};
+  }catch(e){published={state:'failed',events:[],source:null,error:String(e.message||e),checked:new Date().toISOString(),synced:null,fetched:null};}
+  finally{feedLoading=false;$('refresh').disabled=false;renderPublished();if(currentClub&&$('modal').open)renderModal();}
+}
+// Browser automatically checks the locally published snapshot while Published & Scores is open.
+setInterval(()=>{if(tab==='published'&&!document.hidden)loadFeed()},5*60*1000);
 function renderModal(){
   if(!currentClub)return;
   const {name,age:a}=currentClub;
@@ -85,7 +110,7 @@ function renderModal(){
     }
   }
   content+='<h3>Published fixtures & scores</h3>';
-  if(published.state==='loaded'){
+  if(published.state==='loaded'||published.state==='stale'){
     const results=published.events.map(norm).filter(m=>(a==='All'||m.age===a)&&(key(m.home)===key(name)||key(m.away)===key(name)));
     content+=results.length?results.map(g=>scoreLine(g,name)).join(''):'<div class="empty">This feed contains no published matches for the selected club and age group.</div>';
   }else{
