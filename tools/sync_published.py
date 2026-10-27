@@ -1,26 +1,33 @@
 #!/usr/bin/env python3
-"""Sync publicly available Roseville fixtures to a local JSON snapshot.
-Does not use private Kitman credentials or unpublished APIs.
-"""
+"""Fetch the public Roseville MLS Assist JSON; never invent or overwrite on failure."""
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.request import Request, urlopen
+import argparse
 import json
-import pathlib
-import urllib.request
 
-URL = "https://mls-assist.theintelligenceplatform.com/data/schedule/mls-next-cup-qualifier-roseville-regional.json"
-OUTPUT = pathlib.Path(__file__).resolve().parents[1] / "data" / "published-schedule.json"
+DEFAULT_URL = 'https://mls-assist.theintelligenceplatform.com/data/schedule/mls-next-cup-qualifier-roseville-regional.json'
 
-req = urllib.request.Request(URL, headers={"User-Agent": "RosevilleScheduleViewer/1.0 (public-feed-fetch)", "Accept": "application/json"})
-with urllib.request.urlopen(req, timeout=25) as response:
-    if response.status != 200:
-        raise RuntimeError(f"HTTP {response.status}")
-    data = json.load(response)
-if not isinstance(data, dict) or not isinstance(data.get("events"), list):
-    raise ValueError("Unexpected JSON data: missing events list")
-OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-content = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
-# Avoid committing identical data.
-if not OUTPUT.exists() or OUTPUT.read_text(encoding="utf-8") != content:
-    OUTPUT.write_text(content, encoding="utf-8")
-    print(f"Updated {OUTPUT.name}: {len(data['events'])} published events")
-else:
-    print(f"No changes: {len(data['events'])} published events")
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--url', default=DEFAULT_URL)
+    parser.add_argument('--out', default='data/published-schedule.json')
+    args = parser.parse_args()
+    req = Request(args.url, headers={'User-Agent':'ElkGroveRosevilleSchedule/1.0 (public tournament updates)', 'Accept':'application/json','Cache-Control':'no-cache'})
+    with urlopen(req, timeout=25) as response:
+        if response.status != 200:
+            raise RuntimeError(f'Published feed returned HTTP {response.status}')
+        payload = json.load(response)
+    if not isinstance(payload, dict) or not isinstance(payload.get('events'), list):
+        raise ValueError('Published response has no valid events list')
+    payload['_site_fetched_at'] = datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
+    payload['_source_url'] = DEFAULT_URL if args.url == DEFAULT_URL else args.url
+    path=Path(args.out)
+    path.parent.mkdir(parents=True,exist_ok=True)
+    tmp = path.with_suffix('.json.tmp')
+    tmp.write_text(json.dumps(payload,ensure_ascii=False,separators=(',',':'))+'\n')
+    tmp.replace(path)
+    print(f"Fetched {len(payload['events'])} events at {payload['_site_fetched_at']}")
+
+if __name__=='__main__':
+    main()
