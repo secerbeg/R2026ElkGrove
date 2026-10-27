@@ -1,1 +1,39 @@
+name: Sync Roseville Published Schedule
 
+on:
+  schedule:
+    # Approximate 15-minute intervals (GitHub may delay scheduled runs).
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: roseville-pages
+  cancel-in-progress: false
+
+jobs:
+  sync-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout website
+        uses: actions/checkout@v4
+      - name: Fetch Roseville feed and preserve previous successful snapshot
+        run: python3 scripts/sync_schedule.py
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload entire website (including synced JSON)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
