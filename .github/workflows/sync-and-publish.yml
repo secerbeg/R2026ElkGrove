@@ -3,8 +3,8 @@ name: Sync Roseville Published Schedule
 on:
   schedule:
     # Approximate 15-minute intervals (GitHub may delay scheduled runs).
-    #- cron: '7,22,37,52 * * * *'
-    - cron: '7 */6 * * *'
+    - cron: '7,22,37,52 * * * *'
+    #- cron: '7 */6 * * *'
   workflow_dispatch:
   push:
     branches: [main, master]
