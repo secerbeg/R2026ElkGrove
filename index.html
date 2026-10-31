@@ -157,10 +157,11 @@ function renderAges(){$('ages').innerHTML=['All',...ages].map(a=>`<button data-a
 // Group standings from completed fixtures. Shootout points: 2 winner, 1 loser.
 const closeNum=(x,y)=>Math.abs(x-y)<1e-9;
 function groupStandings(fixtures,names){
- const rows=names.map(name=>({name,p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0,ppm:0,winRate:0,gfpm:0}));
+ const rows=names.map(name=>({name,p:0,w:0,d:0,l:0,regWins:0,pkWins:0,pkLosses:0,gf:0,ga:0,gd:0,pts:0,ppm:0,winRate:0,gfpm:0}));
  const byName=new Map(rows.map(r=>[r.name,r]));
- const played=fixtures.filter(m=>m.completed&&Number.isInteger(m.homeScore)&&Number.isInteger(m.awayScore)&&m.homeScore>=0&&m.awayScore>=0&&byName.has(m.home)&&byName.has(m.away)&&m.home!==m.away);
- let pendingShootouts=0;
+ const finalized=fixtures.filter(m=>m.completed&&Number.isInteger(m.homeScore)&&Number.isInteger(m.awayScore)&&m.homeScore>=0&&m.awayScore>=0&&byName.has(m.home)&&byName.has(m.away)&&m.home!==m.away);
+ const played=finalized.filter(m=>m.homeScore!==m.awayScore||validShootout(m));
+ const pendingShootouts=finalized.length-played.length;
  function shootoutWinner(m){
   if(m.homeScore!==m.awayScore)return null;
   if(Number.isInteger(m.homePk)&&Number.isInteger(m.awayPk)&&m.homePk>=0&&m.awayPk>=0&&m.homePk!==m.awayPk)
@@ -170,14 +171,12 @@ function groupStandings(fixtures,names){
  for(const m of played){
   const h=byName.get(m.home),a=byName.get(m.away);
   h.p++;a.p++;h.gf+=m.homeScore;h.ga+=m.awayScore;a.gf+=m.awayScore;a.ga+=m.homeScore;
-  if(m.homeScore>m.awayScore){h.w++;h.pts+=3;a.l++}
-  else if(m.homeScore<m.awayScore){a.w++;a.pts+=3;h.l++}
+  if(m.homeScore>m.awayScore){h.w++;h.regWins++;h.pts+=3;a.l++}
+  else if(m.homeScore<m.awayScore){a.w++;a.regWins++;a.pts+=3;h.l++}
   else{
-   h.d++;a.d++;
    const winner=shootoutWinner(m);
-   if(winner===m.home){h.pts+=2;a.pts+=1}
-   else if(winner===m.away){a.pts+=2;h.pts+=1}
-   else{h.pts++;a.pts++;pendingShootouts++}
+   if(winner===m.home){h.w++;h.pkWins++;h.pts+=2;a.l++;a.pkLosses++;a.pts+=1}
+   else if(winner===m.away){a.w++;a.pkWins++;a.pts+=2;h.l++;h.pkLosses++;h.pts+=1}
   }
  }
  for(const r of rows){r.gd=r.gf-r.ga;r.ppm=r.p?r.pts/r.p:0;r.winRate=r.p?r.w/r.p:0;r.gfpm=r.p?r.gf/r.p:0}
@@ -194,7 +193,7 @@ function groupStandings(fixtures,names){
  function compare(a,b,applyH2H){
   if(!closeNum(a.ppm,b.ppm))return b.ppm-a.ppm;
   if(applyH2H){const p=h2hScore(a.name,b.name)-h2hScore(b.name,a.name);if(p)return -p}
-  if(!closeNum(a.winRate,b.winRate))return b.winRate-a.winRate;
+  if(a.regWins!==b.regWins)return b.regWins-a.regWins;
   if(a.gd!==b.gd)return b.gd-a.gd;
   if(!closeNum(a.gfpm,b.gfpm))return b.gfpm-a.gfpm;
   return 0;
@@ -215,12 +214,12 @@ function groupStandings(fixtures,names){
 }
 function renderStandings(fixtures,names,ageGroup){
  const data=groupStandings(fixtures,names);
- const statHead=['#','Club','P','W','D','L','GF','GA','GD','Pts'];
+ const statHead=['#','Club','P','W','L','GF','GA','GD','Pts'];
  const rows=data.rows.map(r=>{
   const m=fixtures.find(x=>x.home===r.name||x.away===r.name);
   const logo=m?(m.home===r.name?m.homeLogo:m.awayLogo):'';
   const n=r.name==='FCA'?'FCA West Contra Costa':r.name;
-  return `<tr class="${r.name==='Elk Grove'?'elkRow':''}"><td class="pos">${r.pos}</td><td class="teamCell"><button type="button" class="standingsTeam" data-club="${safe(r.name)}" data-age="${safe(ageGroup)}">${publishedCrest(r.name,logo)}<span>${safe(n)}</span></button></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gd>0?'+':''}${r.gd}</td><td class="points">${r.pts}</td></tr>`;
+  return `<tr class="${r.name==='Elk Grove'?'elkRow':''}"><td class="pos">${r.pos}</td><td class="teamCell"><button type="button" class="standingsTeam" data-club="${safe(r.name)}" data-age="${safe(ageGroup)}">${publishedCrest(r.name,logo)}<span>${safe(n)}</span></button></td><td>${r.p}</td><td>${r.w}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gd>0?'+':''}${r.gd}</td><td class="points">${r.pts}</td></tr>`;
  }).join('');
  return `<div class="groupStandings"><div class="standingsScroll"><table class="standingsTable" aria-label="Calculated ${safe(ageGroup)} group standings"><thead><tr>${statHead.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><div class="standingsNote">${data.played?`${data.played} of ${data.total} matches completed`:'No results yet'}${data.pendingShootouts?' · '+data.pendingShootouts+' shootout result(s) missing':''} · Unofficial standings</div></div>`;
 }
@@ -282,7 +281,7 @@ function elkResult(m){
  const elkGoals=elkHome?m.homeScore:m.awayScore,opGoals=elkHome?m.awayScore:m.homeScore;
  if(elkGoals!==opGoals)return elkGoals>opGoals?'WIN':'LOSS';
  if(validShootout(m))return (elkHome?m.homePk:m.awayPk)>(elkHome?m.awayPk:m.homePk)?'WIN':'LOSS';
- return 'DRAW';
+ return null; // Tied regulation without a confirmed shootout is not a final tournament result.
 }
 function validShootout(m){return m.homeScore!==null&&m.homeScore===m.awayScore&&m.homePk!==null&&m.awayPk!==null&&Number.isFinite(m.homePk)&&Number.isFinite(m.awayPk)&&m.homePk!==m.awayPk}
 function pubMatrix(ms){
@@ -291,18 +290,18 @@ function pubMatrix(ms){
   const games=ms.filter(m=>m.age===a).sort((x,y)=>x.sort-y.sort||x.field-y.field);
   if(!games.length)return '';
   const completed=games.filter(m=>elkResult(m));
-  const wins=completed.filter(m=>elkResult(m)==='WIN').length,draws=completed.filter(m=>elkResult(m)==='DRAW').length,losses=completed.filter(m=>elkResult(m)==='LOSS').length;
+  const wins=completed.filter(m=>elkResult(m)==='WIN').length,losses=completed.filter(m=>elkResult(m)==='LOSS').length;
   const rows=games.map(m=>{
    const opponent=m.home==='Elk Grove'?m.away:m.home;
    const url=m.home==='Elk Grove'?m.awayLogo:m.homeLogo;
-   const result=elkResult(m),label=result||'UPCOMING';
+   const result=elkResult(m),pendingPk=m.completed&&m.homeScore===m.awayScore&&!validShootout(m),label=result||(pendingPk?'PK PENDING':'UPCOMING');
    const score=m.completed&&m.homeScore!==null&&m.awayScore!==null?`${m.homeScore} - ${m.awayScore}`:'vs';
    const pk=validShootout(m)?`<small class="ageMatchPk">PK ${safe(m.homePk)} - ${safe(m.awayPk)}</small>`:'';
    return `<button type="button" class="ageMatch" data-club="${safe(opponent)}" data-age="${safe(a)}" aria-label="${safe(a)}: ${safe(m.home)} versus ${safe(m.away)}, ${safe(score)}, ${safe(label)} from Elk Grove perspective"><span class="ageMatchOpp">${publishedCrest(opponent,url)}<span><strong>${safe(opponent==='FCA'?'FCA West Contra Costa':opponent)}</strong><small>${safe(m.dayLabel)} · ${safe(m.time)} · Field ${safe(m.field??'TBD')}</small></span></span><span class="ageMatchScore"><b>${safe(score)}</b>${pk}<small>${safe(m.home)} (H) · ${safe(m.away)} (A)</small></span><span class="ageMatchResult ${result?result.toLowerCase():'upcoming'}">${label}</span></button>`;
   }).join('');
-  return `<section class="ageMatchGroup"><div class="ageMatchHeading"><h4>${safe(a)} - Elk Grove</h4><span>${completed.length?`${wins}W - ${draws}D - ${losses}L`:'No final results'}</span></div><div class="ageMatchRows">${rows}</div></section>`;
+  return `<section class="ageMatchGroup"><div class="ageMatchHeading"><h4>${safe(a)} - Elk Grove</h4><span>${completed.length?`${wins}W - ${losses}L`:'No final results'}</span></div><div class="ageMatchRows">${rows}</div></section>`;
  }).filter(Boolean).join('');
- return `<div class="matrixIntro"><div><h3>Elk Grove Club Matchups</h3><p>Grouped by age · Scores shown home team first</p></div><span class="pubMini">${ms.length} matches</span></div><div class="ageMatchGroups">${groups||'<div class="matrixFoot">No matches for this age group.</div>'}</div><div class="matrixFoot">H = Home · A = Away. WIN / LOSS / DRAW is always from Elk Grove’s perspective. Select a match for details.</div>`;
+ return `<div class="matrixIntro"><div><h3>Elk Grove Club Matchups</h3><p>Grouped by age · Scores shown home team first</p></div><span class="pubMini">${ms.length} matches</span></div><div class="ageMatchGroups">${groups||'<div class="matrixFoot">No matches for this age group.</div>'}</div><div class="matrixFoot">H = Home · A = Away. WIN / LOSS is always from Elk Grove’s perspective. PK wins award 2 points and PK losses 1 point. Select a match for details.</div>`;
 }
 function feedDate(v){if(!v)return'Not available';let d=new Date(v);return isNaN(d)?String(v):d.toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})}
 function renderPublished(){
