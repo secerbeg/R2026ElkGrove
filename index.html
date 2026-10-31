@@ -98,6 +98,23 @@
 .standingsNote{font-size:10px;color:var(--muted);padding:7px 2px 0}
 .standingsCaption{padding:10px 3px 0;color:var(--muted);font-size:11px}
 @media(max-width:800px){[data-panel="groups"] .pools,#groupList.compactGroups{grid-template-columns:1fr}}
+
+/* Club matchups: age-group list with unambiguous home/away scoring */
+.ageMatchGroups{padding:0 16px 15px;display:grid;gap:13px}
+.ageMatchGroup{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+.ageMatchHeading{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 13px;background:#f2f5f9;border-bottom:1px solid var(--line)}
+.ageMatchHeading h4{margin:0;font-size:14px;color:var(--navy)}
+.ageMatchHeading span{color:#566980;font-size:11px;font-weight:750;white-space:nowrap}
+.ageMatchRows{display:flex;flex-direction:column}
+.ageMatch{width:100%;display:grid;grid-template-columns:minmax(0,1fr) minmax(160px,230px) 85px;align-items:center;gap:12px;text-align:left;background:#fff;color:var(--text);border:0;border-bottom:1px solid #e8edf2;padding:11px 13px;cursor:pointer}
+.ageMatch:last-child{border-bottom:0}.ageMatch:hover,.ageMatch:focus-visible{background:#fff8f2;outline-offset:-2px}
+.ageMatchOpp{display:flex;gap:9px;align-items:center;min-width:0}.ageMatchOpp .crest{width:30px;height:30px;flex:none}
+.ageMatchOpp strong{display:block;font-size:13px;line-height:1.3}.ageMatchOpp small,.ageMatchScore small{display:block;color:var(--muted);font-size:10px;margin-top:4px;line-height:1.4}
+.ageMatchScore{text-align:center}.ageMatchScore b{display:block;color:var(--navy);font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ageMatchScore .ageMatchPk{font-weight:750;color:#96552e}
+.ageMatchResult{text-align:center;font-weight:800;font-size:11px;letter-spacing:.02em;padding:7px 4px;border-radius:5px;background:#eef1f5;color:#5b6777}
+.ageMatchResult.win{background:#e5f5ed;color:#186947}.ageMatchResult.loss{background:#fce9e7;color:#a4322c}.ageMatchResult.draw{background:#fff1d9;color:#855600}
+@media(max-width:600px){.ageMatchGroups{padding:0 9px 12px;gap:10px}.ageMatch{grid-template-columns:minmax(0,1fr) 90px 64px;gap:5px;padding:10px 8px}.ageMatchOpp .crest{width:23px;height:23px}.ageMatchOpp{gap:6px}.ageMatchOpp strong{font-size:11.5px}.ageMatchOpp small,.ageMatchScore small{font-size:9px}.ageMatchScore b{font-size:13px}.ageMatchResult{font-size:10px;padding:6px 2px}.ageMatchHeading{padding:9px 10px}}
 </style></head><body>
 <div class="top"></div><header><div class="wrap"><div class="brand"><div id="headerCrest"></div><div><strong>ELK GROVE SOCCER</strong><small>MLS NEXT ACADEMY DIVISION</small></div></div><div style="margin-top:18px"><div class="event">Roseville Regional Cup Qualifier</div><h1>Elk Grove Schedules and Scores</h1><div class="info">October 30 – November 1, 2026 · Roseville, California</div></div></div></header>
 <main class="wrap main"><nav class="tabs" aria-label="Sections">
@@ -257,9 +274,36 @@ function pubAll(){return published.events.map(norm).sort((a,b)=>a.sort-b.sort||a
 function pubFiltered(){return pubAll().filter(m=>(m.home==='Elk Grove'||m.away==='Elk Grove')&&(age==='All'||m.age===age))}
 function publishedCrest(name,url){if(isPlaceholder(name))return `<span class="crest"><span>?</span></span>`;const clean=String(url||'');const target=/^https:\/\//i.test(clean)?clean:DB.crests[name]||'';return `<span class="crest"><span>${safe(initials(name))}</span>${target?`<img src="${safe(target)}" alt="${safe(name)} crest" loading="lazy" referrerpolicy="no-referrer" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">`:''}</span>`}
 function timeField(m){return `<b>${safe(m.time)}</b><small>Field ${safe(m.field??'TBD')}</small>`}
-function scoreText(m){if(m.completed&&m.homeScore!==null&&m.awayScore!==null){let shoot=m.homePk!==null&&m.awayPk!==null?` (PK ${m.homePk}-${m.awayPk})`:'';return `${m.homeScore} - ${m.awayScore}${shoot} · Final`;}return m.round==='Playoffs'&&isPlaceholder(m.home)?'Teams TBD':'Scheduled'}
+function scoreText(m){if(m.completed&&m.homeScore!==null&&m.awayScore!==null){let shoot=validShootout(m)?` (PK ${m.homePk}-${m.awayPk})`:'';return `${m.homeScore} - ${m.awayScore}${shoot} · Final`;}return m.round==='Playoffs'&&isPlaceholder(m.home)?'Teams TBD':'Scheduled'}
 function pubGameCard(m){const score=m.completed&&m.homeScore!==null&&m.awayScore!==null;return `<div class="pubGame"><div class="pubGameWhen"><span class="agechip">${safe(m.age)}</span><strong>${safe(m.time)}</strong><small>${safe(m.dayLabel)}</small></div><div class="pubGameTeams"><div class="pubTeam">${publishedCrest(m.home,m.homeLogo)}<button type="button" data-club="${safe(m.home)}" data-age="${safe(m.age)}">${safe(m.home)}</button></div><div class="pubVersus">${score?`<b>${safe(scoreText(m).replace(' · Final',''))}</b>`:'vs'}</div><div class="pubTeam">${publishedCrest(m.away,m.awayLogo)}<button type="button" data-club="${safe(m.away)}" data-age="${safe(m.age)}">${safe(m.away)}</button></div><div class="pubGameMeta">${safe(m.round==='Playoffs'?(m.day==='2026-11-01'?'Final':'Semifinal'):'Group play')}${m.completed?' · Final':''}</div></div><div class="pubGameField">Field ${safe(m.field??'TBD')}<small>${safe(m.round==='Playoffs'?'Playoff slot':m.home==='Elk Grove'||m.away==='Elk Grove'?'Elk Grove fixture':'Tournament')}</small></div></div>`}
-function pubMatrix(ms){const opponents=['Atletico Azul','North Bay Glens','Washington East Surf','FCA'];const visibleOpp=opponents.filter(opp=>ms.some(g=>g.home===opp||g.away===opp));const selected=age==='All'?ages:[age];let head=visibleOpp.map(opp=>{let e=ms.find(m=>m.home===opp||m.away===opp), url=e&&(e.home===opp?e.homeLogo:e.awayLogo);return `<th><div class="matrixOpponent">${publishedCrest(opp,url)}<div><strong>${safe(opp==='FCA'?'FCA West Contra Costa':opp)}</strong><small>${opp==='Washington East Surf'?'Saturday, Oct 31':'Friday, Oct 30'}</small></div></div></th>`}).join('');let rows=selected.map(a=>`<tr><th class="ageCol">${a}</th>${visibleOpp.map(opp=>{let g=ms.find(m=>m.age===a&&(m.home===opp||m.away===opp));return `<td>${g?`<button type="button" class="matrixGame" data-club="${safe(opp)}" data-age="${safe(a)}"><strong>${safe(g.time)}</strong><small>Field ${safe(g.field??'TBD')}</small>${g.completed&&g.homeScore!==null&&g.awayScore!==null?`<em>${safe(scoreText(g))}</em>`:''}</button>`:'<span class="matrixNoGame">-</span>'}</td>`}).join('')}</tr>`).join('');return `<div class="matrixIntro"><div><h3>Elk Grove Club Matchups</h3><p>Times and fields</p></div><span class="pubMini">${ms.length} matches</span></div><div class="matrixScroll"><table class="clubMatrix" aria-label="Published Elk Grove club matchup matrix"><thead><tr><th class="ageCol">Age</th>${head}</tr></thead><tbody>${rows}</tbody></table></div><div class="matrixFoot">Select a time for matchup details. U19 plays FCA West Contra Costa.</div>`}
+function elkResult(m){
+ if(!m.completed||m.homeScore===null||m.awayScore===null)return null;
+ const elkHome=m.home==='Elk Grove';
+ const elkGoals=elkHome?m.homeScore:m.awayScore,opGoals=elkHome?m.awayScore:m.homeScore;
+ if(elkGoals!==opGoals)return elkGoals>opGoals?'WIN':'LOSS';
+ if(validShootout(m))return (elkHome?m.homePk:m.awayPk)>(elkHome?m.awayPk:m.homePk)?'WIN':'LOSS';
+ return 'DRAW';
+}
+function validShootout(m){return m.homeScore!==null&&m.homeScore===m.awayScore&&m.homePk!==null&&m.awayPk!==null&&Number.isFinite(m.homePk)&&Number.isFinite(m.awayPk)&&m.homePk!==m.awayPk}
+function pubMatrix(ms){
+ const selected=age==='All'?ages:[age];
+ const groups=selected.map(a=>{
+  const games=ms.filter(m=>m.age===a).sort((x,y)=>x.sort-y.sort||x.field-y.field);
+  if(!games.length)return '';
+  const completed=games.filter(m=>elkResult(m));
+  const wins=completed.filter(m=>elkResult(m)==='WIN').length,draws=completed.filter(m=>elkResult(m)==='DRAW').length,losses=completed.filter(m=>elkResult(m)==='LOSS').length;
+  const rows=games.map(m=>{
+   const opponent=m.home==='Elk Grove'?m.away:m.home;
+   const url=m.home==='Elk Grove'?m.awayLogo:m.homeLogo;
+   const result=elkResult(m),label=result||'UPCOMING';
+   const score=m.completed&&m.homeScore!==null&&m.awayScore!==null?`${m.homeScore} - ${m.awayScore}`:'vs';
+   const pk=validShootout(m)?`<small class="ageMatchPk">PK ${safe(m.homePk)} - ${safe(m.awayPk)}</small>`:'';
+   return `<button type="button" class="ageMatch" data-club="${safe(opponent)}" data-age="${safe(a)}" aria-label="${safe(a)}: ${safe(m.home)} versus ${safe(m.away)}, ${safe(score)}, ${safe(label)} from Elk Grove perspective"><span class="ageMatchOpp">${publishedCrest(opponent,url)}<span><strong>${safe(opponent==='FCA'?'FCA West Contra Costa':opponent)}</strong><small>${safe(m.dayLabel)} · ${safe(m.time)} · Field ${safe(m.field??'TBD')}</small></span></span><span class="ageMatchScore"><b>${safe(score)}</b>${pk}<small>${safe(m.home)} (H) · ${safe(m.away)} (A)</small></span><span class="ageMatchResult ${result?result.toLowerCase():'upcoming'}">${label}</span></button>`;
+  }).join('');
+  return `<section class="ageMatchGroup"><div class="ageMatchHeading"><h4>${safe(a)} - Elk Grove</h4><span>${completed.length?`${wins}W - ${draws}D - ${losses}L`:'No final results'}</span></div><div class="ageMatchRows">${rows}</div></section>`;
+ }).filter(Boolean).join('');
+ return `<div class="matrixIntro"><div><h3>Elk Grove Club Matchups</h3><p>Grouped by age · Scores shown home team first</p></div><span class="pubMini">${ms.length} matches</span></div><div class="ageMatchGroups">${groups||'<div class="matrixFoot">No matches for this age group.</div>'}</div><div class="matrixFoot">H = Home · A = Away. WIN / LOSS / DRAW is always from Elk Grove’s perspective. Select a match for details.</div>`;
+}
 function feedDate(v){if(!v)return'Not available';let d=new Date(v);return isNaN(d)?String(v):d.toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})}
 function renderPublished(){
  const title=$('feedTitle'),txt=$('feedText'),stamp=$('feedTime'),badge=$('feedBadge');
